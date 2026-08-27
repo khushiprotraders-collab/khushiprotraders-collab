@@ -86,7 +86,7 @@ def chandan788_page():
     df_pivot = df_pivot.reset_index()
 
     st.markdown("### 🔎 Option Chain with Greeks Matrix")
-    st.dataframe(df_pivot, use_container_width=True)
+    st.dataframe(df_pivot, width="stretch")
 
 if __name__ == "__main__":
     chandan788_page()

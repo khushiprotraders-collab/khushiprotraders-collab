@@ -43,7 +43,7 @@ def multi_timeframe_page():
         df = pd.DataFrame(rows)
         
         st.subheader("📋 Timeframe Breakdown")
-        st.dataframe(df, use_container_width=True)
+        st.dataframe(df, width="stretch")
 
         # Bar chart of scores
         fig = px.bar(
@@ -56,7 +56,7 @@ def multi_timeframe_page():
             template='plotly_dark'
         )
         fig.update_layout(height=400)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     else:
         st.info("No timeframe data available.")
 
