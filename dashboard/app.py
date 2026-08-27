@@ -1,3 +1,5 @@
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import os, json, time, random
 import pandas as pd, numpy as np
 import streamlit as st

@@ -8,7 +8,7 @@ from SmartApi import SmartConnect
 import pyotp
 import mibian
 from dotenv import load_dotenv
-from ..config.settings import ANGEL_API_KEY, ANGEL_CLIENT_ID, ANGEL_PASSWORD, ANGEL_TOTP_SECRET
+from config.settings import ANGEL_API_KEY, ANGEL_CLIENT_ID, ANGEL_PASSWORD, ANGEL_TOTP_SECRET
 
 load_dotenv()
 
