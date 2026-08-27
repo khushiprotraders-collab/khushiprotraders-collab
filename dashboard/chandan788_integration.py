@@ -121,8 +121,9 @@ def chandan788_page():
                 'vega': '{:.2f}',
                 'iv': '{:.2%}'
             }), use_container_width=True)
-            df_chain = df_chain.drop_duplicates(subset=['strike', 'type'])
-        heatmap_data = df_chain.pivot_table(index='strike', columns='type', values='premium', aggfunc='first')
+            # Keep only nearest expiry per (strike, type)
+        df_chain = df_chain.loc[df_chain.groupby(['strike', 'type'])['days'].idxmin()]
+        heatmap_data = df_chain.pivot(index='strike', columns='type', values='premium')
             fig = go.Figure(data=go.Heatmap(z=heatmap_data.values, x=heatmap_data.columns, y=heatmap_data.index, colorscale='Viridis', text=heatmap_data.values, texttemplate='%{text:.1f}'))
             fig.update_layout(height=400, template='plotly_dark', title='Premium Heatmap')
             st.plotly_chart(fig, use_container_width=True)
