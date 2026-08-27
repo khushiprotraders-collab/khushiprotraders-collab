@@ -13,7 +13,7 @@ import pyotp
 from streamlit_autorefresh import st_autorefresh
 
 # Import Chandan788 integration
-from chandan788_integration import chandan788_page
+from dashboard.chandan788_integration import chandan788_page
 
 load_dotenv()
 

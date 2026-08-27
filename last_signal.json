@@ -1,0 +1,73 @@
+{
+  "signal": "BEARISH",
+  "direction": "PE",
+  "score": -0.41000000000000003,
+  "confidence": 0.91,
+  "top_signals": [
+    "RSI Oversold (8.6)",
+    "MACD Bearish",
+    "Price < SMA20",
+    "RSI Oversold (19.8)",
+    "RSI Oversold (15.9)"
+  ],
+  "tf_results": {
+    "1m": {
+      "score": -0.5,
+      "signals": [
+        "RSI Oversold (8.6)",
+        "MACD Bearish",
+        "Price < SMA20",
+        "Price < SMA50",
+        "SuperTrend Bearish"
+      ]
+    },
+    "5m": {
+      "score": -0.7000000000000001,
+      "signals": [
+        "MACD Bearish",
+        "Price < SMA20",
+        "Price < SMA50",
+        "SuperTrend Bearish"
+      ]
+    },
+    "15m": {
+      "score": -0.7000000000000001,
+      "signals": [
+        "MACD Bearish",
+        "Price < SMA20",
+        "Price < SMA50",
+        "SuperTrend Bearish"
+      ]
+    },
+    "30m": {
+      "score": -0.5,
+      "signals": [
+        "RSI Oversold (19.8)",
+        "MACD Bearish",
+        "Price < SMA20",
+        "Price < SMA50",
+        "SuperTrend Bearish"
+      ]
+    },
+    "1h": {
+      "score": -0.5,
+      "signals": [
+        "RSI Oversold (15.9)",
+        "MACD Bearish",
+        "Price < SMA20",
+        "Price < SMA50",
+        "SuperTrend Bearish"
+      ]
+    },
+    "4h": {
+      "score": 0,
+      "signals": []
+    },
+    "1D": {
+      "score": 0,
+      "signals": []
+    }
+  },
+  "spot": 24090.85,
+  "timestamp": "2026-08-28T01:00:50.717528"
+}
