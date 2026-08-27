@@ -74,9 +74,7 @@ elif page == "📊 Multi-Timeframe":
     st.info("Multi-timeframe charts will appear here.")
 
 elif page == "🔎 Options Chain":
-    st.info("Options chain with Greeks will appear here.")
-
-elif page == "📈 Chandan788 Analysis":
+    chandan788_page()
     chandan788_page()
 
 # ---------- Auto Refresh ----------
