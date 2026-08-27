@@ -1,27 +1,17 @@
-import os, json, time, urllib.request
+import os, json, urllib.request
 import pandas as pd
 import numpy as np
 import streamlit as st
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
-from SmartApi import SmartConnect
-import pyotp
 import mibian
-from dotenv import load_dotenv
 
-load_dotenv()
-
-def get_cred(key):
+# ---------- Helpers ----------
+def get_greeks(spot, strike, days, premium, opt_type):
     try:
-        return st.secrets[key]
-    except:
-        return os.getenv(key)
-
-def get_greeks(spot, strike, days_to_expiry, premium, option_type):
-    try:
-        iv = max(0.05, min(0.8, (premium / strike) * np.sqrt(365 / max(days_to_expiry,1))))
-        bs = mibian.BS([spot, strike, 7.0, days_to_expiry/365], volatility=iv)
-        if option_type == 'CE':
+        iv = max(0.05, min(0.8, (premium / strike) * np.sqrt(365 / max(days, 1))))
+        bs = mibian.BS([spot, strike, 7.0, days / 365], volatility=iv)
+        if opt_type == 'CE':
             return {'delta': bs.callDelta, 'gamma': bs.callGamma, 'theta': bs.callTheta, 'vega': bs.callVega, 'iv': iv}
         else:
             return {'delta': bs.putDelta, 'gamma': bs.putGamma, 'theta': bs.putTheta, 'vega': bs.putVega, 'iv': iv}
@@ -32,17 +22,20 @@ def fetch_option_chain(spot):
     url = "https://margincalculator.angelone.in/OpenAPI_File/files/OpenAPIScripMaster.json"
     with urllib.request.urlopen(url) as response:
         instruments = json.loads(response.read())
-    atm_strike = round(spot/50)*50
+
     data = []
+    atm = round(spot / 50) * 50
     for i in instruments:
         if i.get('name') == 'NIFTY' and i.get('instrumenttype') == 'OPTIDX':
-            strike = float(i['strike'])/100
+            strike = float(i['strike']) / 100
             if abs(strike - spot) <= 500:
                 symbol = i['symbol']
-                opt_type = symbol[-2:] if symbol[-2:] in ['CE','PE'] else ''
+                opt_type = symbol[-2:] if symbol[-2:] in ['CE', 'PE'] else ''
                 token = i['token']
-                premium = 145.25  # placeholder; in production use ltpData
-                days = (datetime.strptime(i['expiry'], '%d%b%Y') - datetime.now()).days
+                # Use a placeholder premium (could be fetched via ltpData)
+                premium = 145.25  # Placeholder; replace with actual API call later
+                expiry_str = i['expiry']
+                days = (datetime.strptime(expiry_str, '%d%b%Y') - datetime.now()).days
                 if days > 0:
                     greeks = get_greeks(spot, strike, days, premium, opt_type)
                     data.append({
@@ -54,72 +47,42 @@ def fetch_option_chain(spot):
                         'theta': greeks['theta'],
                         'vega': greeks['vega'],
                         'iv': greeks['iv'],
-                        'expiry': i['expiry'],
+                        'expiry': expiry_str,
                         'days': days
                     })
+
     df = pd.DataFrame(data)
     if df.empty:
         return df
-    # Keep only nearest expiry per (strike, type)
+    # Keep only the nearest expiry for each (strike, type)
     df = df.loc[df.groupby(['strike', 'type'])['days'].idxmin()]
-    # Drop any duplicates that might remain (just in case)
     df = df.drop_duplicates(subset=['strike', 'type'])
     df = df.sort_values('strike')
     return df
-
-def run_backtest(df, strategy='ORB', exit_bars=5):
-    if len(df) < 5:
-        return None
-    orb_high = df['high'].iloc[:3].max()
-    orb_low = df['low'].iloc[:3].min()
-    df['signal'] = 0
-    df.loc[df['close'] > orb_high, 'signal'] = 1
-    df.loc[df['close'] < orb_low, 'signal'] = -1
-    trades = []
-    pos = 0; entry = 0; entry_idx = 0
-    for i, row in df.iterrows():
-        if pos == 0 and row['signal'] != 0:
-            pos = row['signal']
-            entry = row['close']
-            entry_idx = i
-        elif pos != 0:
-            if (row['signal'] == -pos) or (i - entry_idx >= exit_bars):
-                exit_price = row['close']
-                pnl = (exit_price - entry) * pos
-                trades.append({'entry': entry, 'exit': exit_price, 'pnl': pnl, 'type': 'long' if pos==1 else 'short'})
-                pos = 0
-    if trades:
-        df_trades = pd.DataFrame(trades)
-        total_pnl = df_trades['pnl'].sum()
-        win_rate = (df_trades['pnl'] > 0).mean()
-        avg_profit = df_trades['pnl'].mean()
-        sharpe = avg_profit / df_trades['pnl'].std() if df_trades['pnl'].std() != 0 else 0
-        return {'total_pnl': total_pnl, 'win_rate': win_rate, 'avg_profit': avg_profit, 'sharpe': sharpe, 'trades': df_trades}
-    return None
 
 def chandan788_page():
     st.header("📈 Chandan788 Analysis")
     st.markdown("Option chain with Greeks and backtesting (inspired by SmartAPI.ipynb)")
 
+    # Get spot from engine if available
     try:
         with open('last_signal.json', 'r') as f:
-            signal_data = json.load(f)
-            spot = signal_data.get('spot', 24000)
+            data = json.load(f)
+            spot = data.get('spot', 24000)
     except:
         spot = 24000
 
     col1, col2 = st.columns(2)
-    with col1:
-        st.metric("NIFTY Spot", f"{spot:.2f}")
-    with col2:
-        atm = round(spot/50)*50
-        st.metric("ATM Strike", f"{atm:.0f}")
+    col1.metric("NIFTY Spot", f"{spot:.2f}")
+    atm = round(spot / 50) * 50
+    col2.metric("ATM Strike", f"{atm:.0f}")
 
     st.subheader("🔎 Option Chain with Greeks")
-    with st.spinner("Loading option chain..."):
-        df_chain = fetch_option_chain(spot)
-        if not df_chain.empty:
-            st.dataframe(df_chain.style.format({
+    with st.spinner("Fetching option chain..."):
+        df = fetch_option_chain(spot)
+        if not df.empty:
+            # Display table
+            st.dataframe(df.style.format({
                 'premium': '{:.2f}',
                 'delta': '{:.3f}',
                 'gamma': '{:.4f}',
@@ -128,12 +91,10 @@ def chandan788_page():
                 'iv': '{:.2%}'
             }), use_container_width=True)
 
-            # Heatmap using pivot_table to handle any lingering duplicates
+            # Heatmap
             try:
-                heatmap_data = df_chain.pivot_table(index='strike', columns='type', values='premium', aggfunc='first', fill_value=0)
-                if heatmap_data.empty:
-                    st.info("No data to display heatmap.")
-                else:
+                heatmap_data = df.pivot_table(index='strike', columns='type', values='premium', aggfunc='first', fill_value=0)
+                if not heatmap_data.empty:
                     fig = go.Figure(data=go.Heatmap(
                         z=heatmap_data.values,
                         x=heatmap_data.columns,
@@ -144,6 +105,8 @@ def chandan788_page():
                     ))
                     fig.update_layout(height=400, template='plotly_dark', title='Premium Heatmap')
                     st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info("No data for heatmap.")
             except Exception as e:
                 st.warning(f"Heatmap could not be rendered: {e}")
         else:
@@ -151,8 +114,9 @@ def chandan788_page():
 
     st.subheader("📊 Backtest (ORB Strategy)")
     if st.button("Run Backtest"):
+        # For demonstration, create dummy data (replace with real historical data)
         dates = pd.date_range(end=datetime.now(), periods=100, freq='5min')
-        df = pd.DataFrame({
+        df_dummy = pd.DataFrame({
             'date': dates,
             'open': np.random.normal(spot, 20, 100),
             'high': np.random.normal(spot+10, 20, 100),
@@ -160,13 +124,41 @@ def chandan788_page():
             'close': np.random.normal(spot, 20, 100),
             'volume': np.random.randint(1000, 5000, 100)
         })
-        result = run_backtest(df)
-        if result:
-            st.success(f"Total P&L: {result['total_pnl']:.2f} points")
-            col1, col2, col3 = st.columns(3)
-            col1.metric("Win Rate", f"{result['win_rate']*100:.1f}%")
-            col2.metric("Avg Profit", f"{result['avg_profit']:.2f}")
-            col3.metric("Sharpe", f"{result['sharpe']:.2f}")
-            st.dataframe(result['trades'])
+        # Simple ORB backtest
+        if len(df_dummy) >= 5:
+            orb_high = df_dummy['high'].iloc[:3].max()
+            orb_low = df_dummy['low'].iloc[:3].min()
+            df_dummy['signal'] = 0
+            df_dummy.loc[df_dummy['close'] > orb_high, 'signal'] = 1
+            df_dummy.loc[df_dummy['close'] < orb_low, 'signal'] = -1
+            trades = []
+            pos = 0
+            entry = 0
+            entry_idx = 0
+            for i, row in df_dummy.iterrows():
+                if pos == 0 and row['signal'] != 0:
+                    pos = row['signal']
+                    entry = row['close']
+                    entry_idx = i
+                elif pos != 0:
+                    if (row['signal'] == -pos) or (i - entry_idx >= 5):
+                        exit_price = row['close']
+                        pnl = (exit_price - entry) * pos
+                        trades.append({'entry': entry, 'exit': exit_price, 'pnl': pnl, 'type': 'long' if pos == 1 else 'short'})
+                        pos = 0
+            if trades:
+                df_trades = pd.DataFrame(trades)
+                total_pnl = df_trades['pnl'].sum()
+                win_rate = (df_trades['pnl'] > 0).mean()
+                avg_profit = df_trades['pnl'].mean()
+                sharpe = avg_profit / df_trades['pnl'].std() if df_trades['pnl'].std() != 0 else 0
+                st.success(f"Total P&L: {total_pnl:.2f} points")
+                col_a, col_b, col_c = st.columns(3)
+                col_a.metric("Win Rate", f"{win_rate*100:.1f}%")
+                col_b.metric("Avg Profit", f"{avg_profit:.2f}")
+                col_c.metric("Sharpe", f"{sharpe:.2f}")
+                st.dataframe(df_trades)
+            else:
+                st.info("No trades generated.")
         else:
-            st.info("No trades generated")
+            st.warning("Insufficient data for backtest.")
