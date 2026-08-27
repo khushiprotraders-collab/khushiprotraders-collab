@@ -1,2 +1,11 @@
+streamlit
 plotly
+pandas
+numpy
 streamlit-autorefresh
+pytz
+python-dotenv
+smartapi-python
+pyotp
+mibian
+requests
