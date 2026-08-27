@@ -71,9 +71,8 @@ if page == "🏠 Live Dashboard":
         st.info("Waiting for signal data... (Ensure engine is running)")
 
 elif page == "📊 Multi-Timeframe":
-    st.info("Multi-timeframe charts will appear here.")
-
-elif page == "🔎 Options Chain":
+    from multi_timeframe_display import multi_timeframe_page
+    multi_timeframe_page()
     chandan788_page()
     chandan788_page()
 
