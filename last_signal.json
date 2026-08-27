@@ -1,8 +1,8 @@
 {
   "signal": "BEARISH",
   "direction": "PE",
-  "score": -0.41000000000000003,
-  "confidence": 0.91,
+  "score": -0.48500000000000004,
+  "confidence": 0.95,
   "top_signals": [
     "RSI Oversold (8.6)",
     "MACD Bearish",
@@ -64,10 +64,16 @@
       "signals": []
     },
     "1D": {
-      "score": 0,
-      "signals": []
+      "score": -0.5,
+      "signals": [
+        "RSI Oversold (27.9)",
+        "MACD Bearish",
+        "Price < SMA20",
+        "Price < SMA50",
+        "SuperTrend Bearish"
+      ]
     }
   },
   "spot": 24090.85,
-  "timestamp": "2026-08-28T01:00:50.717528"
+  "timestamp": "2026-08-28T01:31:39.264585"
 }
