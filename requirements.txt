@@ -11,3 +11,4 @@ mibian
 requests
 logzero
 websocket-client
+scipy
