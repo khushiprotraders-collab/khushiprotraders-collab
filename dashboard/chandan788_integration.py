@@ -113,6 +113,12 @@ def chandan788_page():
     with st.spinner("Loading option chain..."):
         df_chain = fetch_option_chain(spot)
         if not df_chain.empty:
+            # Keep only the nearest expiry for each (strike, type) pair
+            df_chain = df_chain.loc[df_chain.groupby(['strike', 'type'])['days'].idxmin()]
+            # Sort by strike
+            df_chain = df_chain.sort_values('strike')
+            
+            # Show table
             st.dataframe(df_chain.style.format({
                 'premium': '{:.2f}',
                 'delta': '{:.3f}',
@@ -121,12 +127,15 @@ def chandan788_page():
                 'vega': '{:.2f}',
                 'iv': '{:.2%}'
             }), use_container_width=True)
-            # Keep only nearest expiry per (strike, type)
-        df_chain = df_chain.loc[df_chain.groupby(['strike', 'type'])['days'].idxmin()]
-        heatmap_data = df_chain.pivot(index='strike', columns='type', values='premium')
-            fig = go.Figure(data=go.Heatmap(z=heatmap_data.values, x=heatmap_data.columns, y=heatmap_data.index, colorscale='Viridis', text=heatmap_data.values, texttemplate='%{text:.1f}'))
-            fig.update_layout(height=400, template='plotly_dark', title='Premium Heatmap')
-            st.plotly_chart(fig, use_container_width=True)
+            
+            # Try to render heatmap
+            try:
+                heatmap_data = df_chain.pivot(index='strike', columns='type', values='premium')
+                fig = go.Figure(data=go.Heatmap(z=heatmap_data.values, x=heatmap_data.columns, y=heatmap_data.index, colorscale='Viridis', text=heatmap_data.values, texttemplate='%{text:.1f}'))
+                fig.update_layout(height=400, template='plotly_dark', title='Premium Heatmap')
+                st.plotly_chart(fig, use_container_width=True)
+            except Exception as e:
+                st.warning(f"Could not render heatmap: {e}")
         else:
             st.warning("No option data available")
 
