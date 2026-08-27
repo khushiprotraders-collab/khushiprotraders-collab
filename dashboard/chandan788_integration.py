@@ -11,14 +11,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# ---------- Helper to get credentials (cloud or local) ----------
 def get_cred(key):
     try:
         return st.secrets[key]
     except:
         return os.getenv(key)
 
-# ---------- Option Chain with Greeks ----------
 def get_greeks(spot, strike, days_to_expiry, premium, option_type):
     try:
         iv = max(0.05, min(0.8, (premium / strike) * np.sqrt(365 / max(days_to_expiry,1))))
@@ -59,7 +57,15 @@ def fetch_option_chain(spot):
                         'expiry': i['expiry'],
                         'days': days
                     })
-    return pd.DataFrame(data)
+    df = pd.DataFrame(data)
+    if df.empty:
+        return df
+    # Keep only nearest expiry per (strike, type)
+    df = df.loc[df.groupby(['strike', 'type'])['days'].idxmin()]
+    # Drop any duplicates that might remain (just in case)
+    df = df.drop_duplicates(subset=['strike', 'type'])
+    df = df.sort_values('strike')
+    return df
 
 def run_backtest(df, strategy='ORB', exit_bars=5):
     if len(df) < 5:
@@ -113,12 +119,6 @@ def chandan788_page():
     with st.spinner("Loading option chain..."):
         df_chain = fetch_option_chain(spot)
         if not df_chain.empty:
-            # Keep only the nearest expiry for each (strike, type) pair
-            df_chain = df_chain.loc[df_chain.groupby(['strike', 'type'])['days'].idxmin()]
-            # Sort by strike
-            df_chain = df_chain.sort_values('strike')
-            
-            # Show table
             st.dataframe(df_chain.style.format({
                 'premium': '{:.2f}',
                 'delta': '{:.3f}',
@@ -127,15 +127,25 @@ def chandan788_page():
                 'vega': '{:.2f}',
                 'iv': '{:.2%}'
             }), use_container_width=True)
-            
-            # Try to render heatmap
+
+            # Heatmap using pivot_table to handle any lingering duplicates
             try:
-                heatmap_data = df_chain.pivot(index='strike', columns='type', values='premium')
-                fig = go.Figure(data=go.Heatmap(z=heatmap_data.values, x=heatmap_data.columns, y=heatmap_data.index, colorscale='Viridis', text=heatmap_data.values, texttemplate='%{text:.1f}'))
-                fig.update_layout(height=400, template='plotly_dark', title='Premium Heatmap')
-                st.plotly_chart(fig, use_container_width=True)
+                heatmap_data = df_chain.pivot_table(index='strike', columns='type', values='premium', aggfunc='first', fill_value=0)
+                if heatmap_data.empty:
+                    st.info("No data to display heatmap.")
+                else:
+                    fig = go.Figure(data=go.Heatmap(
+                        z=heatmap_data.values,
+                        x=heatmap_data.columns,
+                        y=heatmap_data.index,
+                        colorscale='Viridis',
+                        text=heatmap_data.values,
+                        texttemplate='%{text:.1f}'
+                    ))
+                    fig.update_layout(height=400, template='plotly_dark', title='Premium Heatmap')
+                    st.plotly_chart(fig, use_container_width=True)
             except Exception as e:
-                st.warning(f"Could not render heatmap: {e}")
+                st.warning(f"Heatmap could not be rendered: {e}")
         else:
             st.warning("No option data available")
 

@@ -39,7 +39,7 @@ st.markdown(f"""
 
 # ---------- Sidebar ----------
 st.sidebar.markdown("### 📌 Navigation")
-page = st.sidebar.radio("", ["🏠 Live Dashboard", "📊 Multi-Timeframe", "🔎 Options Chain", "📈 Chandan788 Analysis"])
+page = st.sidebar.radio("Navigation", ["🏠 Live Dashboard", "📊 Multi-Timeframe", "🔎 Options Chain", "📈 Chandan788 Analysis"])
 refresh_rate = st.sidebar.selectbox("Refresh (sec)", [10, 30, 60, 120, 300], index=2)
 if st.sidebar.button("🔄 Refresh Live Data"):
     st.cache_data.clear()
