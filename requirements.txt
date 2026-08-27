@@ -9,3 +9,5 @@ smartapi-python
 pyotp
 mibian
 requests
+logzero
+websocket-client
