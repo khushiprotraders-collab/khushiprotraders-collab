@@ -8,11 +8,17 @@ from SmartApi import SmartConnect
 import pyotp
 import mibian
 from dotenv import load_dotenv
-from config import settings
 
 load_dotenv()
 
-# ------------------- Option Chain with Greeks -------------------
+# ---------- Helper to get credentials (cloud or local) ----------
+def get_cred(key):
+    try:
+        return st.secrets[key]
+    except:
+        return os.getenv(key)
+
+# ---------- Option Chain with Greeks ----------
 def get_greeks(spot, strike, days_to_expiry, premium, option_type):
     try:
         iv = max(0.05, min(0.8, (premium / strike) * np.sqrt(365 / max(days_to_expiry,1))))
@@ -25,7 +31,6 @@ def get_greeks(spot, strike, days_to_expiry, premium, option_type):
         return {'delta': 0, 'gamma': 0, 'theta': 0, 'vega': 0, 'iv': 0}
 
 def fetch_option_chain(spot):
-    # Download instrument master
     url = "https://margincalculator.angelone.in/OpenAPI_File/files/OpenAPIScripMaster.json"
     with urllib.request.urlopen(url) as response:
         instruments = json.loads(response.read())
@@ -38,7 +43,6 @@ def fetch_option_chain(spot):
                 symbol = i['symbol']
                 opt_type = symbol[-2:] if symbol[-2:] in ['CE','PE'] else ''
                 token = i['token']
-                # Get premium (simplified: we'll use placeholder if API not available)
                 premium = 145.25  # placeholder; in production use ltpData
                 days = (datetime.strptime(i['expiry'], '%d%b%Y') - datetime.now()).days
                 if days > 0:
@@ -57,7 +61,6 @@ def fetch_option_chain(spot):
                     })
     return pd.DataFrame(data)
 
-# ------------------- Backtesting -------------------
 def run_backtest(df, strategy='ORB', exit_bars=5):
     if len(df) < 5:
         return None
@@ -88,12 +91,10 @@ def run_backtest(df, strategy='ORB', exit_bars=5):
         return {'total_pnl': total_pnl, 'win_rate': win_rate, 'avg_profit': avg_profit, 'sharpe': sharpe, 'trades': df_trades}
     return None
 
-# ------------------- Streamlit Page -------------------
 def chandan788_page():
     st.header("📈 Chandan788 Analysis")
     st.markdown("Option chain with Greeks and backtesting (inspired by SmartAPI.ipynb)")
 
-    # Fetch live spot (if available from KPT engine, else use placeholder)
     try:
         with open('last_signal.json', 'r') as f:
             signal_data = json.load(f)
@@ -108,7 +109,6 @@ def chandan788_page():
         atm = round(spot/50)*50
         st.metric("ATM Strike", f"{atm:.0f}")
 
-    # Option Chain
     st.subheader("🔎 Option Chain with Greeks")
     with st.spinner("Loading option chain..."):
         df_chain = fetch_option_chain(spot)
@@ -121,7 +121,6 @@ def chandan788_page():
                 'vega': '{:.2f}',
                 'iv': '{:.2%}'
             }), use_container_width=True)
-            # Heatmap of premiums
             heatmap_data = df_chain.pivot(index='strike', columns='type', values='premium')
             fig = go.Figure(data=go.Heatmap(z=heatmap_data.values, x=heatmap_data.columns, y=heatmap_data.index, colorscale='Viridis', text=heatmap_data.values, texttemplate='%{text:.1f}'))
             fig.update_layout(height=400, template='plotly_dark', title='Premium Heatmap')
@@ -129,11 +128,8 @@ def chandan788_page():
         else:
             st.warning("No option data available")
 
-    # Backtest
     st.subheader("📊 Backtest (ORB Strategy)")
     if st.button("Run Backtest"):
-        # Fetch historical data (replace with actual API call)
-        # For demo, we'll create dummy data
         dates = pd.date_range(end=datetime.now(), periods=100, freq='5min')
         df = pd.DataFrame({
             'date': dates,
