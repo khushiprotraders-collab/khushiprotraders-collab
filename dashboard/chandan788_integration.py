@@ -32,8 +32,7 @@ def fetch_option_chain(spot):
                 symbol = i['symbol']
                 opt_type = symbol[-2:] if symbol[-2:] in ['CE', 'PE'] else ''
                 token = i['token']
-                # Use a placeholder premium (could be fetched via ltpData)
-                premium = 145.25  # Placeholder; replace with actual API call later
+                premium = 145.25  # Placeholder – replace with actual API call later
                 expiry_str = i['expiry']
                 days = (datetime.strptime(expiry_str, '%d%b%Y') - datetime.now()).days
                 if days > 0:
@@ -50,7 +49,6 @@ def fetch_option_chain(spot):
                         'expiry': expiry_str,
                         'days': days
                     })
-
     df = pd.DataFrame(data)
     if df.empty:
         return df
@@ -64,7 +62,7 @@ def chandan788_page():
     st.header("📈 Chandan788 Analysis")
     st.markdown("Option chain with Greeks and backtesting (inspired by SmartAPI.ipynb)")
 
-    # Get spot from engine if available
+    # Get spot from engine
     try:
         with open('last_signal.json', 'r') as f:
             data = json.load(f)
@@ -91,30 +89,33 @@ def chandan788_page():
                 'iv': '{:.2%}'
             }), use_container_width=True)
 
-            # Heatmap
+            # ----- MANUAL HEATMAP (NO PIVOT) -----
             try:
-                heatmap_data = df.pivot_table(index='strike', columns='type', values='premium', aggfunc='first', fill_value=0)
-                if not heatmap_data.empty:
-                    fig = go.Figure(data=go.Heatmap(
-                        z=heatmap_data.values,
-                        x=heatmap_data.columns,
-                        y=heatmap_data.index,
-                        colorscale='Viridis',
-                        text=heatmap_data.values,
-                        texttemplate='%{text:.1f}'
-                    ))
-                    fig.update_layout(height=400, template='plotly_dark', title='Premium Heatmap')
-                    st.plotly_chart(fig, use_container_width=True)
-                else:
-                    st.info("No data for heatmap.")
+                strikes = sorted(df['strike'].unique())
+                types = ['CE', 'PE']
+                matrix = np.zeros((len(strikes), len(types)))
+                for i, s in enumerate(strikes):
+                    for j, t in enumerate(types):
+                        val = df[(df['strike'] == s) & (df['type'] == t)]['premium'].values
+                        matrix[i, j] = val[0] if len(val) > 0 else 0
+
+                fig = go.Figure(data=go.Heatmap(
+                    z=matrix,
+                    x=types,
+                    y=strikes,
+                    colorscale='Viridis',
+                    text=matrix,
+                    texttemplate='%{text:.1f}'
+                ))
+                fig.update_layout(height=400, template='plotly_dark', title='Premium Heatmap')
+                st.plotly_chart(fig, use_container_width=True)
             except Exception as e:
-                st.warning(f"Heatmap could not be rendered: {e}")
+                st.warning(f"Could not render heatmap: {e}")
         else:
             st.warning("No option data available")
 
     st.subheader("📊 Backtest (ORB Strategy)")
     if st.button("Run Backtest"):
-        # For demonstration, create dummy data (replace with real historical data)
         dates = pd.date_range(end=datetime.now(), periods=100, freq='5min')
         df_dummy = pd.DataFrame({
             'date': dates,
